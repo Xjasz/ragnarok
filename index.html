@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ragnarok Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="character-selection" class="screen">
+            <h1>Choose Your Character</h1>
+            <div class="character-options">
+                <div class="character-option" id="knight">
+                    <div class="character-preview knight"></div>
+                    <h2>Knight</h2>
+                    <p>Strong melee fighter with powerful area attacks</p>
+                    <ul>
+                        <li>Spiral Pierce: Hits 3 times on one enemy</li>
+                        <li>Brandish: Area damage to multiple enemies</li>
+                    </ul>
+                </div>
+                <div class="character-option" id="wizard">
+                    <div class="character-preview wizard"></div>
+                    <h2>Wizard</h2>
+                    <p>Powerful magic user with devastating spells</p>
+                    <ul>
+                        <li>Fire Bolt: Cast 1-10 bolts of fire</li>
+                        <li>Fireball: Explosion that damages nearby enemies</li>
+                    </ul>
+                </div>
+            </div>
+            <button id="start-game">Start Game</button>
+        </div>
+        
+        <div id="game-screen" class="screen hidden">
+            <canvas id="game-canvas"></canvas>
+            
+            <div id="ui-overlay">
+                <div id="character-info">
+                    <div id="character-level">Level: 20</div>
+                    <div id="character-hp">HP: 1000/1000</div>
+                    <div id="character-sp">SP: 500/500</div>
+                    <div id="character-exp">EXP: 0/1000</div>
+                </div>
+                
+                <div id="skills">
+                    <div class="skill" id="skill-1">1: Skill 1</div>
+                    <div class="skill" id="skill-2">2: Skill 2</div>
+                </div>
+                
+                <div id="messages"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="character.js"></script>
+    <script src="player.js"></script>
+    <script src="game-objects.js"></script>
+    <script src="game.js"></script>
+</body>
+</html> 
