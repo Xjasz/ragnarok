@@ -48,25 +48,12 @@ A fast-paced browser-based action RPG where you can play as either a Knight or W
 2. Click on an enemy to use the skill
 3. Click empty space to cancel the skill
 
-## Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/browser-rpg.git
-   cd browser-rpg
-   ```
 
 2. Open `index.html` in your web browser to start playing
 
 ## Development
 
 This game is built with vanilla JavaScript and HTML5 Canvas, requiring no build process or dependencies. To make changes:
-
-1. Fork the repository
-2. Create your feature branch: `git checkout -b feature/AmazingFeature`
-3. Commit your changes: `git commit -m 'Add some AmazingFeature'`
-4. Push to the branch: `git push origin feature/AmazingFeature`
-5. Open a Pull Request
 
 ## Technical Details
 
