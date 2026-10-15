@@ -23,8 +23,6 @@ document.addEventListener('DOMContentLoaded', function() {
     window.enemies = []; // Make enemies global
     let projectiles = [];
     window.effects = []; // Make effects global
-    let isCasting = false;
-    let castEndTime = 0;
     
     // Make canvas global
     window.gameCanvas = canvas;
@@ -210,6 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.hp = 0;
                 gameRunning = false;
                 showMessage('You died! Reload the page to play again.');
+                clearTimeout(messageTimer);
             }
         }
         
@@ -378,9 +377,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         if (this.sp >= spCost) {
                             this.sp -= spCost;
-                            
+                            const boltCount = this.fireBoltCount;
+
                             // Start casting
-                            this.startCasting(this.fireBoltCount * 0.2); // 0.2 seconds per bolt cast time
+                            this.startCasting(boltCount * 0.2); // 0.2 seconds per bolt cast time
                             
                             const target = window.attackTarget;
                             // Face target
@@ -391,10 +391,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             // Execute after cast time
                             setTimeout(() => {
-                                for (let i = 0; i < this.fireBoltCount; i++) {
+                                for (let i = 0; i < boltCount; i++) {
                                     setTimeout(() => {
-                                        effects.push(new HitEffect(target.x, target.y));
-                                        
                                         // Visual projectile effect
                                         const offsetX = target.x + (Math.random() - 0.5) * 30;
                                         const offsetY = target.y + (Math.random() - 0.5) * 30;
@@ -410,7 +408,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         ));
                                     }, i * 200);
                                 }
-                            }, this.fireBoltCount * 200); // Match cast time
+                            }, boltCount * 200); // Match cast time
                         } else {
                             showMessage('Not enough SP!');
                         }
@@ -669,7 +667,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!fireBoltText.hasAttribute('contenteditable')) {
                 fireBoltText.setAttribute('contenteditable', 'true');
                 fireBoltText.addEventListener('blur', function() {
-                    const count = parseInt(this.textContent.match(/\d+/)?.[0] || '5');
+                    const nums = this.textContent.match(/\d+/g) || ['5'];
+                    const count = parseInt(nums[nums.length - 1]);
                     player.fireBoltCount = Math.min(10, Math.max(1, count));
                     this.textContent = `1: Fire Bolt (${player.fireBoltCount}) ${player.isCasting ? '(Casting...)' : ''}`;
                 });
@@ -701,6 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Spawn boss function
     function spawnBoss() {
+        if (!gameRunning) return;
         // Spawn boss at random position away from player
         let x, y, tries = 0;
         do {
@@ -736,6 +736,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let targetY = 0;
     
     function handleMouseDown(e) {
+        if (!gameRunning) return;
         isMouseDown = true;
         const rect = canvas.getBoundingClientRect();
         targetX = e.clientX - rect.left;
@@ -785,7 +786,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function handleKeyDown(e) {
-        if (e.target.isContentEditable) return;
+        if (!gameRunning || e.target.isContentEditable) return;
         // Number keys 1-2 for skills (instead of F-keys)
         if (e.key === '1' && !player.isCasting) {
             e.preventDefault();
