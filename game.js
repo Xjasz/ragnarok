@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let selectedCharacter = null;
     let gameRunning = false;
     let lastTimestamp = 0;
+    let messageTimer = null;
     let selectedSkill = null;
     
     // Game objects
@@ -207,7 +208,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (this.hp <= 0) {
                 this.hp = 0;
-                // Handle death
+                gameRunning = false;
+                showMessage('You died! Reload the page to play again.');
             }
         }
         
@@ -391,7 +393,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             setTimeout(() => {
                                 for (let i = 0; i < this.fireBoltCount; i++) {
                                     setTimeout(() => {
-                                        target.takeDamage(this.attackDamage * 0.7, effects);
                                         effects.push(new HitEffect(target.x, target.y));
                                         
                                         // Visual projectile effect
@@ -421,12 +422,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Fireball
                 () => {
                     if (this.sp >= 60 && !this.isCasting) {
+                        const target = window.attackTarget || this.getClosestEnemy();
+                        if (!target) {
+                            showMessage('No target in range!');
+                            return;
+                        }
                         this.sp -= 60;
-                        
+
                         // Start casting
                         this.startCasting(1.5); // 1.5 second cast time
-                        
-                        const target = this.getClosestEnemy();
+
                         if (target) {
                             // Face target
                             this.facing = Math.atan2(target.y - this.y, target.x - this.x);
@@ -551,7 +556,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!gameRunning) return;
         
         // Calculate delta time
-        const deltaTime = timestamp - lastTimestamp;
+        const deltaTime = Math.min(timestamp - (lastTimestamp || timestamp), 50);
         lastTimestamp = timestamp;
         
         // Clear canvas
@@ -583,6 +588,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Check collisions with enemies
             enemies.forEach(enemy => {
+                if (projectile.expired) return;
                 if (projectile.checkCollision(enemy)) {
                     enemy.takeDamage(projectile.damage);
                     projectile.onHit(enemy);
@@ -607,9 +613,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             return true;
         });
-        
-        // Update UI
-        renderUI();
     }
     
     // Render game function
@@ -653,8 +656,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderUI() {
         // Update character info
         document.getElementById('character-level').textContent = `Level: ${player.level}`;
-        document.getElementById('character-hp').textContent = `HP: ${player.hp}/${player.maxHp}`;
-        document.getElementById('character-sp').textContent = `SP: ${player.sp}/${player.maxSp}`;
+        document.getElementById('character-hp').textContent = `HP: ${Math.floor(player.hp)}/${player.maxHp}`;
+        document.getElementById('character-sp').textContent = `SP: ${Math.floor(player.sp)}/${player.maxSp}`;
         document.getElementById('character-exp').textContent = `EXP: ${player.exp}/${player.expToNextLevel}`;
         
         // Update skill names and cooldowns
@@ -677,7 +680,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
             }
-            fireBoltText.textContent = `1: Fire Bolt (${player.fireBoltCount}) ${player.isCasting ? '(Casting...)' : ''}`;
+            if (document.activeElement !== fireBoltText) fireBoltText.textContent = `1: Fire Bolt (${player.fireBoltCount}) ${player.isCasting ? '(Casting...)' : ''}`;
             document.getElementById('skill-2').textContent = `2: Fireball ${player.isCasting ? '(Casting...)' : ''}`;
         }
     }
@@ -686,11 +689,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function spawnEnemies(count) {
         for (let i = 0; i < count; i++) {
             // Random position away from player
-            let x, y;
+            let x, y, tries = 0;
             do {
                 x = Math.random() * canvas.width;
                 y = Math.random() * canvas.height;
-            } while (Math.hypot(x - player.x, y - player.y) < 200);
+            } while (Math.hypot(x - player.x, y - player.y) < 200 && ++tries < 50);
             
             enemies.push(new Orc(x, y));
         }
@@ -699,11 +702,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Spawn boss function
     function spawnBoss() {
         // Spawn boss at random position away from player
-        let x, y;
+        let x, y, tries = 0;
         do {
             x = Math.random() * canvas.width;
             y = Math.random() * canvas.height;
-        } while (Math.hypot(x - player.x, y - player.y) < 300);
+        } while (Math.hypot(x - player.x, y - player.y) < 300 && ++tries < 50);
         
         enemies.push(new HighOrc(x, y));
         
@@ -716,9 +719,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const messagesDiv = document.getElementById('messages');
         messagesDiv.textContent = text;
         messagesDiv.style.opacity = 1;
-        
-        // Fade out after 3 seconds
-        setTimeout(() => {
+        clearTimeout(messageTimer);
+        messageTimer = setTimeout(() => {
             messagesDiv.style.opacity = 0;
         }, 3000);
     }
@@ -741,22 +743,23 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Check if clicked on enemy
         window.attackTarget = null;
-        enemies.forEach(enemy => {
+        for (const enemy of enemies) {
             if (Math.hypot(enemy.x - targetX, enemy.y - targetY) < enemy.radius) {
                 window.attackTarget = enemy;
                 // If a skill is selected, use it
                 if (selectedSkill !== null) {
                     player.skills[selectedSkill]();
                     selectedSkill = null; // Reset selected skill
-                    return;
+                    break;
                 }
                 // Move towards enemy if not in range
                 const distance = Math.hypot(enemy.x - player.x, enemy.y - player.y);
                 if (distance > player.attackRange) {
                     player.moveTo(enemy.x, enemy.y);
                 }
+                break;
             }
-        });
+        }
         
         // If not clicked on enemy and no skill is selected, move to position
         if (!window.attackTarget && selectedSkill === null) {
@@ -782,6 +785,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function handleKeyDown(e) {
+        if (e.target.isContentEditable) return;
         // Number keys 1-2 for skills (instead of F-keys)
         if (e.key === '1' && !player.isCasting) {
             e.preventDefault();

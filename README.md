@@ -48,12 +48,14 @@ A fast-paced browser-based action RPG where you can play as either a Knight or W
 2. Click on an enemy to use the skill
 3. Click empty space to cancel the skill
 
+## Getting Started
 
+1. Clone or download this repository
 2. Open `index.html` in your web browser to start playing
 
 ## Development
 
-This game is built with vanilla JavaScript and HTML5 Canvas, requiring no build process or dependencies. To make changes:
+This game is built with vanilla JavaScript and HTML5 Canvas, requiring no build process or dependencies. Edit the `.js` files and reload the page.
 
 ## Technical Details
 
@@ -76,4 +78,4 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 ## License
 
-This project is open source and available under the MIT License. 
+No license file is included yet. 
