@@ -124,7 +124,7 @@ class Projectile {
         // Calculate direction
         const dx = targetX - x;
         const dy = targetY - y;
-        const distance = Math.hypot(dx, dy);
+        const distance = Math.hypot(dx, dy) || 1;
         this.directionX = dx / distance;
         this.directionY = dy / distance;
     }
@@ -267,10 +267,12 @@ class DamageNumber extends Effect {
     }
     
     render(ctx) {
-        ctx.fillStyle = this.color.replace(')', `, ${this.opacity})`).replace('rgb', 'rgba');
+        ctx.globalAlpha = Math.max(0, this.opacity);
+        ctx.fillStyle = this.color;
         ctx.font = '20px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(this.amount, this.x, this.y + this.yOffset);
+        ctx.globalAlpha = 1;
     }
 }
 
@@ -362,9 +364,11 @@ class AreaEffect extends Effect {
     render(ctx) {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.color.replace(')', `, ${this.opacity})`).replace('rgb', 'rgba');
+        ctx.globalAlpha = Math.max(0, this.opacity);
+        ctx.fillStyle = this.color;
         ctx.fill();
         ctx.closePath();
+        ctx.globalAlpha = 1;
     }
 }
 

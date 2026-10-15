@@ -133,6 +133,7 @@ body {
     top: 0;
     left: 0;
     width: 100%;
+    height: 100%;
     pointer-events: none;
     padding: 20px;
 }
@@ -164,6 +165,10 @@ body {
     border: 1px solid #555;
 }
 
+#skill-1[contenteditable] {
+    pointer-events: auto;
+}
+
 #messages {
     position: absolute;
     bottom: 80px;
@@ -173,5 +178,6 @@ body {
     padding: 10px;
     border-radius: 5px;
     max-width: 400px;
+    opacity: 0;
     text-align: center;
 } 

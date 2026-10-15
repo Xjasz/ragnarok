@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let selectedCharacter = null;
     let gameRunning = false;
     let lastTimestamp = 0;
+    let messageTimer = null;
     let selectedSkill = null;
     
     // Game objects
@@ -22,8 +23,6 @@ document.addEventListener('DOMContentLoaded', function() {
     window.enemies = []; // Make enemies global
     let projectiles = [];
     window.effects = []; // Make effects global
-    let isCasting = false;
-    let castEndTime = 0;
     
     // Make canvas global
     window.gameCanvas = canvas;
@@ -207,7 +206,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (this.hp <= 0) {
                 this.hp = 0;
-                // Handle death
+                gameRunning = false;
+                showMessage('You died! Reload the page to play again.');
+                clearTimeout(messageTimer);
             }
         }
         
@@ -376,9 +377,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         if (this.sp >= spCost) {
                             this.sp -= spCost;
-                            
+                            const boltCount = this.fireBoltCount;
+
                             // Start casting
-                            this.startCasting(this.fireBoltCount * 0.2); // 0.2 seconds per bolt cast time
+                            this.startCasting(boltCount * 0.2); // 0.2 seconds per bolt cast time
                             
                             const target = window.attackTarget;
                             // Face target
@@ -389,11 +391,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             // Execute after cast time
                             setTimeout(() => {
-                                for (let i = 0; i < this.fireBoltCount; i++) {
+                                for (let i = 0; i < boltCount; i++) {
                                     setTimeout(() => {
-                                        target.takeDamage(this.attackDamage * 0.7, effects);
-                                        effects.push(new HitEffect(target.x, target.y));
-                                        
                                         // Visual projectile effect
                                         const offsetX = target.x + (Math.random() - 0.5) * 30;
                                         const offsetY = target.y + (Math.random() - 0.5) * 30;
@@ -409,7 +408,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         ));
                                     }, i * 200);
                                 }
-                            }, this.fireBoltCount * 200); // Match cast time
+                            }, boltCount * 200); // Match cast time
                         } else {
                             showMessage('Not enough SP!');
                         }
@@ -421,12 +420,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Fireball
                 () => {
                     if (this.sp >= 60 && !this.isCasting) {
+                        const target = window.attackTarget || this.getClosestEnemy();
+                        if (!target) {
+                            showMessage('No target in range!');
+                            return;
+                        }
                         this.sp -= 60;
-                        
+
                         // Start casting
                         this.startCasting(1.5); // 1.5 second cast time
-                        
-                        const target = this.getClosestEnemy();
+
                         if (target) {
                             // Face target
                             this.facing = Math.atan2(target.y - this.y, target.x - this.x);
@@ -551,7 +554,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!gameRunning) return;
         
         // Calculate delta time
-        const deltaTime = timestamp - lastTimestamp;
+        const deltaTime = Math.min(timestamp - (lastTimestamp || timestamp), 50);
         lastTimestamp = timestamp;
         
         // Clear canvas
@@ -583,6 +586,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Check collisions with enemies
             enemies.forEach(enemy => {
+                if (projectile.expired) return;
                 if (projectile.checkCollision(enemy)) {
                     enemy.takeDamage(projectile.damage);
                     projectile.onHit(enemy);
@@ -607,9 +611,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             return true;
         });
-        
-        // Update UI
-        renderUI();
     }
     
     // Render game function
@@ -653,8 +654,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderUI() {
         // Update character info
         document.getElementById('character-level').textContent = `Level: ${player.level}`;
-        document.getElementById('character-hp').textContent = `HP: ${player.hp}/${player.maxHp}`;
-        document.getElementById('character-sp').textContent = `SP: ${player.sp}/${player.maxSp}`;
+        document.getElementById('character-hp').textContent = `HP: ${Math.floor(player.hp)}/${player.maxHp}`;
+        document.getElementById('character-sp').textContent = `SP: ${Math.floor(player.sp)}/${player.maxSp}`;
         document.getElementById('character-exp').textContent = `EXP: ${player.exp}/${player.expToNextLevel}`;
         
         // Update skill names and cooldowns
@@ -666,7 +667,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!fireBoltText.hasAttribute('contenteditable')) {
                 fireBoltText.setAttribute('contenteditable', 'true');
                 fireBoltText.addEventListener('blur', function() {
-                    const count = parseInt(this.textContent.match(/\d+/)?.[0] || '5');
+                    const nums = this.textContent.match(/\d+/g) || ['5'];
+                    const count = parseInt(nums[nums.length - 1]);
                     player.fireBoltCount = Math.min(10, Math.max(1, count));
                     this.textContent = `1: Fire Bolt (${player.fireBoltCount}) ${player.isCasting ? '(Casting...)' : ''}`;
                 });
@@ -677,7 +679,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
             }
-            fireBoltText.textContent = `1: Fire Bolt (${player.fireBoltCount}) ${player.isCasting ? '(Casting...)' : ''}`;
+            if (document.activeElement !== fireBoltText) fireBoltText.textContent = `1: Fire Bolt (${player.fireBoltCount}) ${player.isCasting ? '(Casting...)' : ''}`;
             document.getElementById('skill-2').textContent = `2: Fireball ${player.isCasting ? '(Casting...)' : ''}`;
         }
     }
@@ -686,11 +688,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function spawnEnemies(count) {
         for (let i = 0; i < count; i++) {
             // Random position away from player
-            let x, y;
+            let x, y, tries = 0;
             do {
                 x = Math.random() * canvas.width;
                 y = Math.random() * canvas.height;
-            } while (Math.hypot(x - player.x, y - player.y) < 200);
+            } while (Math.hypot(x - player.x, y - player.y) < 200 && ++tries < 50);
             
             enemies.push(new Orc(x, y));
         }
@@ -698,12 +700,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Spawn boss function
     function spawnBoss() {
+        if (!gameRunning) return;
         // Spawn boss at random position away from player
-        let x, y;
+        let x, y, tries = 0;
         do {
             x = Math.random() * canvas.width;
             y = Math.random() * canvas.height;
-        } while (Math.hypot(x - player.x, y - player.y) < 300);
+        } while (Math.hypot(x - player.x, y - player.y) < 300 && ++tries < 50);
         
         enemies.push(new HighOrc(x, y));
         
@@ -716,9 +719,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const messagesDiv = document.getElementById('messages');
         messagesDiv.textContent = text;
         messagesDiv.style.opacity = 1;
-        
-        // Fade out after 3 seconds
-        setTimeout(() => {
+        clearTimeout(messageTimer);
+        messageTimer = setTimeout(() => {
             messagesDiv.style.opacity = 0;
         }, 3000);
     }
@@ -734,6 +736,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let targetY = 0;
     
     function handleMouseDown(e) {
+        if (!gameRunning) return;
         isMouseDown = true;
         const rect = canvas.getBoundingClientRect();
         targetX = e.clientX - rect.left;
@@ -741,22 +744,23 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Check if clicked on enemy
         window.attackTarget = null;
-        enemies.forEach(enemy => {
+        for (const enemy of enemies) {
             if (Math.hypot(enemy.x - targetX, enemy.y - targetY) < enemy.radius) {
                 window.attackTarget = enemy;
                 // If a skill is selected, use it
                 if (selectedSkill !== null) {
                     player.skills[selectedSkill]();
                     selectedSkill = null; // Reset selected skill
-                    return;
+                    break;
                 }
                 // Move towards enemy if not in range
                 const distance = Math.hypot(enemy.x - player.x, enemy.y - player.y);
                 if (distance > player.attackRange) {
                     player.moveTo(enemy.x, enemy.y);
                 }
+                break;
             }
-        });
+        }
         
         // If not clicked on enemy and no skill is selected, move to position
         if (!window.attackTarget && selectedSkill === null) {
@@ -782,6 +786,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function handleKeyDown(e) {
+        if (!gameRunning || e.target.isContentEditable) return;
         // Number keys 1-2 for skills (instead of F-keys)
         if (e.key === '1' && !player.isCasting) {
             e.preventDefault();
